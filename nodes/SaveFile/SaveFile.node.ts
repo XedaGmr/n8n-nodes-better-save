@@ -40,20 +40,6 @@ export class SaveFile implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Create Folders',
-				name: 'createFolders',
-				type: 'boolean',
-				default: true,
-				description: 'Whether to create the destination folder if it does not exist.',
-			},
-			{
-				displayName: 'Overwrite Existing File',
-				name: 'overwrite',
-				type: 'boolean',
-				default: false,
-				description: 'If enabled, any existing file with the same name will be overwritten.',
-			},
-			{
 				displayName: 'Input Data Mode',
 				name: 'inputMode',
 				type: 'options',
@@ -77,21 +63,6 @@ export class SaveFile implements INodeType {
 				description: 'The name of the binary property on the input item to use.',
 			},
 			{
-				displayName: 'Source for Text Data',
-				name: 'textDataSource',
-				type: 'options',
-				options: [
-					{ name: 'From Field', value: 'field' },
-					{ name: 'Full JSON', value: 'fullJson' },
-				],
-				default: 'fullJson',
-				displayOptions: {
-					show: {
-						inputMode: ['text'],
-					},
-				},
-			},
-			{
 				displayName: 'Source Field',
 				name: 'dataField',
 				type: 'string',
@@ -99,7 +70,6 @@ export class SaveFile implements INodeType {
 				displayOptions: {
 					show: {
 						inputMode: ['text'],
-						textDataSource: ['field'],
 					},
 				},
 				description: 'The name of the field in the JSON data to save.',
@@ -124,32 +94,56 @@ export class SaveFile implements INodeType {
 
 			// Optional Properties
 			{
-				displayName: 'Custom Pattern',
-				name: 'customPattern',
-				type: 'string',
-				default: '{base}_{counter}',
-				description: 'A custom pattern for the filename. Supports `{base}` and `{counter}` tokens.',
-			},
-			{
-				displayName: 'Counter Start',
-				name: 'counterStart',
-				type: 'number',
-				typeOptions: {
-					minValue: 0,
-				},
-				default: 1,
-				description: 'The starting number for the counter.',
-			},
-			{
-				displayName: 'Counter Padding (Zeros)',
-				name: 'counterPadding',
-				type: 'number',
-				typeOptions: {
-					minValue: 0,
-				},
-				default: 4,
-				description:
-					'The number of zeros to pad the counter with. For example, a padding of 4 will turn `1` into `0001`.',
+				displayName: 'Additional Options',
+				name: 'additionalOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				options: [
+					{
+						displayName: 'Create Folders',
+						name: 'createFolders',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to create the destination folder if it does not exist.',
+					},
+					{
+						displayName: 'Overwrite Existing File',
+						name: 'overwrite',
+						type: 'boolean',
+						default: false,
+						description: 'If enabled, any existing file with the same name will be overwritten.',
+					},
+					{
+						displayName: 'Custom Pattern',
+						name: 'customPattern',
+						type: 'string',
+						default: '{base}_{counter}',
+						description:
+							'A custom pattern for the filename. Supports `{base}` and `{counter}` tokens.',
+					},
+					{
+						displayName: 'Counter Start',
+						name: 'counterStart',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+						},
+						default: 1,
+						description: 'The starting number for the counter.',
+					},
+					{
+						displayName: 'Counter Padding (Zeros)',
+						name: 'counterPadding',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+						},
+						default: 3,
+						description:
+							'The number of zeros to pad the counter with. For example, a padding of 4 will turn `1` into `0001`.',
+					},
+				],
 			},
 		],
 	};
@@ -233,14 +227,18 @@ export class SaveFile implements INodeType {
 				const item = items[i];
 
 				const folderPath = this.getNodeParameter('folderPath', i) as string;
-				const createFolders = this.getNodeParameter('createFolders', i) as boolean;
-				const overwrite = this.getNodeParameter('overwrite', i) as boolean;
 				const inputMode = this.getNodeParameter('inputMode', i) as string;
-				const pattern = this.getNodeParameter('customPattern', i) as string;
-				const counterStart = this.getNodeParameter('counterStart', i) as number;
-				const counterPadding = this.getNodeParameter('counterPadding', i) as number;
 				let baseFileName = this.getNodeParameter('baseFileName', i, 'file') as string;
 				let fileExtension = this.getNodeParameter('fileExtension', i, '') as string;
+
+				// Get optional parameters from the collection
+				const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as any;
+				const createFolders = additionalOptions.createFolders ?? true;
+				const overwrite = additionalOptions.overwrite ?? false;
+				const pattern = additionalOptions.customPattern ?? '{base}_{counter}';
+				const counterStart = additionalOptions.counterStart ?? 1;
+				const counterPadding = additionalOptions.counterPadding ?? 3;
+
 				let buffer: Buffer;
 
 				if (createFolders) {
@@ -279,28 +277,19 @@ export class SaveFile implements INodeType {
 					}
 				} else {
 					// text mode
-					const textDataSource = this.getNodeParameter('textDataSource', i) as string;
+					let textData = this.getNodeParameter('dataField', i);
 
-					let textData: string;
-
-					if (textDataSource === 'field') {
-						const dataField = this.getNodeParameter('dataField', i) as string;
-
-						if (typeof dataField !== 'string') {
-							textData = JSON.stringify(dataField, null, 2);
-						} else {
-							textData = dataField;
-						}
-
-						if (!fileExtension) {
-							fileExtension = 'txt';
-						}
-					} else {
-						// fullJson
-						textData = JSON.stringify(item.json, null, 2);
+					if (typeof textData !== 'string') {
+						textData = JSON.stringify(textData, null, 2);
 
 						if (!fileExtension) {
 							fileExtension = 'json';
+						}
+					} else {
+						textData = textData;
+
+						if (!fileExtension) {
+							fileExtension = 'txt';
 						}
 					}
 
