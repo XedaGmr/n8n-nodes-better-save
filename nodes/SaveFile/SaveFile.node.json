@@ -1,0 +1,22 @@
+{
+	"node": "n8n-nodes-better-save",
+	"nodeVersion": "0.1.0",
+	"codexVersion": "1.0",
+	"categories": ["Data & Storage", "Files", "Utility"],
+	"subcategories": {
+		"Data & Storage": ["Files"],
+		"Files": ["Create", "Write"],
+		"Utility": ["Helper"]
+	},
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/XedaGmr/n8n-nodes-better-save#readme"
+			}
+		],
+		"credentialDocumentation": [],
+		"generic": []
+	},
+	"alias": ["save", "file", "write", "export", "download", "storage"],
+	"icon": "fa:save"
+}
