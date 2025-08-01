@@ -1,48 +1,174 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# n8n-nodes-better-save
 
-# n8n-nodes-starter
+This is an n8n community node that provides advanced file saving capabilities. It lets you save files with flexible naming patterns, atomic operations, and robust error handling in your n8n workflows.
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](https://n8n.io). It includes the node linter and other dependencies.
+The Better Save node extends n8n's built-in file operations with features like automatic counter-based naming, custom filename patterns, race-condition prevention, and support for both binary and text data.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-If you would like your node to be available on n8n cloud you can also [submit your node for verification](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/).
+[Installation](#installation)
+[Operations](#operations)
+[Features](#features)
+[Compatibility](#compatibility)
+[Usage](#usage)
+[Configuration](#configuration)
+[Examples](#examples)
 
-## Prerequisites
+## Installation
 
-You need the following installed on your development machine:
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-* [git](https://git-scm.com/downloads)
-* Node.js and npm. Minimum version Node 20. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  npm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+### NPM Installation
 
-## Using this starter
+```bash
+npm install n8n-nodes-better-save
+```
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+### Manual Installation
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
-   ```
-3. Run `npm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `npm run lint` to check for errors or `npm run lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+1. Clone this repository or download the dist files
+2. Copy the `dist` folder to your n8n custom nodes directory (`~/.n8n/custom/`)
+3. Restart n8n
 
-## More information
+## Operations
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+The Better Save node provides a single operation:
+
+- **Save File (Advanced)**: Saves binary or text/JSON data to files with advanced naming and overwrite options
+
+## Features
+
+### **Core Capabilities**
+
+- **Dual Data Mode Support**: Save both binary data and text/JSON data
+
+### **File Naming Features**
+
+- **Smart Defaults**: Auto-detect file extensions and base names from binary data
+- **Folder Management**: Automatically create destination directories
+- **Pattern Tokens**: Use `{base}` and `{counter}` tokens in custom patterns
+- **Auto-Incrementing**: Automatic counter with configurable start value and zero-padding
+
+### **Safety Features**
+
+- **Race-Condition Safe**: Uses atomic file operations to prevent conflicts in concurrent workflows
+- **Overwrite Control**: Choose whether to overwrite existing files or create new ones
+- **Filename Sanitization**: Removes invalid characters and handles cross-platform compatibility
+
+## Compatibility
+
+- **Tested with**: n8n 1.102.4
+- **Platform support**: Windows, macOS, Linux
+
+## Usage
+
+### Basic File Saving
+
+1. Add the "Save File (Advanced)" node to your workflow
+2. Configure the required parameters:
+   - **Folder Path**: Where to save files (e.g., `/data/files`)
+   - **Input Data Mode**: Choose "Binary" or "Text/JSON"
+   - **Base Filename**: Base name for your files
+3. Optionally configure advanced options in the "Additional Options" collection
+
+### Working with Binary Data
+
+When saving binary data (files, images, documents):
+
+- Set **Input Data Mode** to "Binary"
+- Specify the **Binary Property Name** (usually "data")
+- The node will auto-detect filename and extension from binary metadata
+
+### Working with Text/JSON Data
+
+When saving text or JSON data:
+
+- Set **Input Data Mode** to "Text/JSON"
+- Choose **From Field**: Saves data from a specific field
+
+## Configuration
+
+### Required Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| **Folder Path** | Destination directory for saved files | `/tmp/n8n-files` |
+| **Input Data Mode** | Type of data to save (Binary/Text) | `Binary` |
+| **Base Filename** | Base name for output files | `document` |
+| **File Extension** | File extension (auto-detected if empty) | `pdf` |
+
+### Additional Options (Optional)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Create Folders** | `true` | Create destination directory if it doesn't exist |
+| **Overwrite Existing File** | `false` | Overwrite files or create new ones with incremented names |
+| **Custom Pattern** | `{base}_{counter}` | Filename pattern using tokens |
+| **Counter Start** | `1` | Starting number for the counter |
+| **Counter Padding** | `3` | Number of zeros to pad the counter |
+
+### Pattern Tokens
+
+- `{base}`: Replaced with the base filename
+- `{counter}`: Replaced with the auto-incrementing counter (with padding)
+
+## Examples
+
+### Example 1: Save PDF Files with Auto-Incrementing Names
+
+```txt
+Input: Binary PDF data
+Configuration:
+- Folder Path: /documents/pdf
+- Input Data Mode: Binary
+- Base Filename: report
+- Custom Pattern: {base}_{counter}
+- Counter Padding: 3
+
+Output: report_001.pdf, report_002.pdf, report_003.pdf, ...
+```
+
+### Example 2: Save JSON Data from API Response
+
+```txt
+Input: JSON object from API
+Configuration:
+- Folder Path: /data/exports
+- Input Data Mode: Text/JSON
+- Source for Text Data: Full JSON
+- Base Filename: api_response
+- File Extension: json
+
+Output: api_response_001.json, api_response_002.json, ...
+```
+
+### Example 3: Save Specific Field as Text File
+
+```txt
+Input: JSON with "content" field
+Configuration:
+- Folder Path: /exports/text
+- Input Data Mode: Text/JSON
+- Source for Text Data: From Field
+- Source Field: content
+- Base Filename: extracted_content
+- File Extension: txt
+
+Output: extracted_content_001.txt, extracted_content_002.txt, ...
+```
+
+### Example 4: Custom Naming Pattern
+
+```txt
+Configuration:
+- Custom Pattern: backup_{base}_{counter}_final
+- Base Filename: data
+- Counter Start: 100
+- Counter Padding: 4
+
+Output: backup_data_0100_final.json, backup_data_0101_final.json, ...
+```
 
 ## License
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
