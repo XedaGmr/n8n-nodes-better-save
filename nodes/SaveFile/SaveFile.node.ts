@@ -171,6 +171,130 @@ export class SaveFile implements INodeType {
 		return extension ? `${sanitizedName}.${extension}` : sanitizedName;
 	}
 
+	private static async scanExistingCounters(
+		folder: string,
+		pattern: string,
+		base: string,
+		extension: string,
+	): Promise<Set<number>> {
+		const existingCounters = new Set<number>();
+
+		try {
+			const files = await fs.readdir(folder);
+			const sanitizedBase = SaveFile.sanitizeFilename(base);
+
+			// Create regex to match our pattern and extract counter values
+			const escapedBase = sanitizedBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const escapedExt = extension ? extension.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+
+			// Build regex based on the pattern
+			let regexPattern = pattern.replace('{base}', escapedBase).replace('{counter}', '(\\d+)');
+
+			if (extension) {
+				regexPattern += `\\.${escapedExt}`;
+			}
+
+			const fileRegex = new RegExp(`^${regexPattern}$`);
+
+			// Extract counter values from existing files
+			for (const file of files) {
+				const match = file.match(fileRegex);
+				if (match && match[1]) {
+					const existingCounter = parseInt(match[1], 10);
+					if (!isNaN(existingCounter)) {
+						existingCounters.add(existingCounter);
+					}
+				}
+			}
+		} catch (err: any) {
+			// If we can't read the directory (e.g., it doesn't exist), return empty set
+			if (err.code !== 'ENOENT') {
+				throw err;
+			}
+		}
+
+		return existingCounters;
+	}
+
+	private static findNextAvailableCounter(
+		existingCounters: Set<number>,
+		startCounter: number,
+		maxAttempts: number,
+	): number {
+		let counter = startCounter;
+
+		// Find the first available counter starting from startCounter
+		while (existingCounters.has(counter) && counter < startCounter + maxAttempts) {
+			counter++;
+		}
+
+		if (counter >= startCounter + maxAttempts) {
+			throw new Error(
+				`Could not find free counter after ${maxAttempts} attempts starting from ${startCounter}.`,
+			);
+		}
+
+		return counter;
+	}
+
+	private static async createFileAtomically(
+		folder: string,
+		pattern: string,
+		base: string,
+		counter: number,
+		pad: number,
+		extension: string,
+		buffer: Buffer,
+	): Promise<string> {
+		const filename = SaveFile.formatFilename(pattern, base, counter, pad, extension);
+		const fullPath = path.join(folder, filename);
+
+		let filehandle;
+		try {
+			filehandle = await fs.open(fullPath, 'wx');
+			await filehandle.writeFile(buffer);
+			return fullPath;
+		} finally {
+			if (filehandle) {
+				await filehandle.close();
+			}
+		}
+	}
+
+	private static async createFile(
+		folder: string,
+		pattern: string,
+		base: string,
+		startCounter: number,
+		pad: number,
+		extension: string,
+		buffer: Buffer,
+		maxRetries: number = 100,
+	): Promise<string> {
+		for (let attempts = 0; attempts < maxRetries; attempts++) {
+			try {
+				return await SaveFile.createFileAtomically(
+					folder,
+					pattern,
+					base,
+					startCounter + attempts,
+					pad,
+					extension,
+					buffer,
+				);
+			} catch (err: any) {
+				if (err.code !== 'EEXIST') {
+					throw err;
+				}
+				// Continue trying with next counter
+			}
+		}
+
+		throw new Error(
+			`Could not find free filename for base "${base}" after scanning existing files and retrying ${maxRetries} times.`,
+		);
+	}
+
 	private static async findAndWrite(
 		folder: string,
 		pattern: string,
@@ -182,36 +306,36 @@ export class SaveFile implements INodeType {
 		overwrite: boolean = false,
 		maxAttempts: number = 10000,
 	): Promise<string> {
-		let counter = startCounter;
-		for (let attempts = 0; attempts < maxAttempts; attempts++) {
-			const filename = SaveFile.formatFilename(pattern, base, counter, pad, extension);
+		// If overwrite is enabled, just write the file directly
+		if (overwrite) {
+			const filename = SaveFile.formatFilename(pattern, base, startCounter, pad, extension);
 			const fullPath = path.join(folder, filename);
-
-			if (overwrite) {
-				await fs.writeFile(fullPath, buffer);
-				return fullPath;
-			}
-
-			let filehandle;
-			try {
-				filehandle = await fs.open(fullPath, 'wx');
-				await filehandle.writeFile(buffer);
-				return fullPath; // Success
-			} catch (err: any) {
-				if (err.code === 'EEXIST') {
-					counter++;
-					continue; // Try next counter
-				}
-				throw err; // Other error
-			} finally {
-				if (filehandle) {
-					await filehandle.close();
-				}
-			}
+			await fs.writeFile(fullPath, buffer);
+			return fullPath;
 		}
-		throw new Error(
-			`Could not find free filename for base "${base}" after ${maxAttempts} attempts.`,
+
+		// Scan existing files to find the next available counter
+		const existingCounters = await SaveFile.scanExistingCounters(folder, pattern, base, extension);
+		const optimalCounter = SaveFile.findNextAvailableCounter(
+			existingCounters,
+			startCounter,
+			maxAttempts,
 		);
+
+		// Try to create the file with the optimal counter
+		try {
+			return await SaveFile.createFile(
+				folder,
+				pattern,
+				base,
+				optimalCounter,
+				pad,
+				extension,
+				buffer,
+			);
+		} catch (err: any) {
+			throw err;
+		}
 	}
 
 	private static binaryToBuffer(binaryData: any): Buffer {
