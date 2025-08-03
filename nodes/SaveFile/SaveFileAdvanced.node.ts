@@ -5,6 +5,7 @@ import {
 	INodeTypeDescription,
 	NodeOperationError,
 	NodeConnectionType,
+	ApplicationError,
 } from 'n8n-workflow';
 
 import { promises as fs } from 'fs';
@@ -48,7 +49,7 @@ export class SaveFile implements INodeType {
 					{ name: 'Text/JSON', value: 'text' },
 				],
 				default: 'binary',
-				description: 'The type of input data to save.',
+				description: 'The type of input data to save',
 			},
 			{
 				displayName: 'Binary Property Name',
@@ -60,7 +61,7 @@ export class SaveFile implements INodeType {
 						inputMode: ['binary'],
 					},
 				},
-				description: 'The name of the binary property on the input item to use.',
+				description: 'The name of the binary property on the input item to use',
 			},
 			{
 				displayName: 'Source Field',
@@ -72,7 +73,7 @@ export class SaveFile implements INodeType {
 						inputMode: ['text'],
 					},
 				},
-				description: 'The name of the field in the JSON data to save.',
+				description: 'The name of the field in the JSON data to save',
 			},
 			{
 				displayName: 'Base Filename',
@@ -89,7 +90,7 @@ export class SaveFile implements INodeType {
 				default: '',
 				placeholder: 'txt',
 				description:
-					'The file extension to use. If empty, it will be derived from the binary data `fileName` or will be `json` for text mode.',
+					'The file extension to use. If empty, it will be derived from the binary data `fileName` or will be `JSON` for text mode.',
 			},
 
 			// Optional Properties
@@ -101,18 +102,32 @@ export class SaveFile implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'Counter Padding (Zeros)',
+						name: 'counterPadding',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+						},
+						default: 3,
+						description:
+							'The number of zeros to pad the counter with. For example, a padding of 4 will turn `1` into `0001`.',
+					},
+					{
+						displayName: 'Counter Start',
+						name: 'counterStart',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+						},
+						default: 1,
+						description: 'The starting number for the counter',
+					},
+					{
 						displayName: 'Create Folders',
 						name: 'createFolders',
 						type: 'boolean',
 						default: true,
-						description: 'Whether to create the destination folder if it does not exist.',
-					},
-					{
-						displayName: 'Overwrite Existing File',
-						name: 'overwrite',
-						type: 'boolean',
-						default: false,
-						description: 'If enabled, any existing file with the same name will be overwritten.',
+						description: 'Whether to create the destination folder if it does not exist',
 					},
 					{
 						displayName: 'Custom Pattern',
@@ -123,25 +138,11 @@ export class SaveFile implements INodeType {
 							'A custom pattern for the filename. Supports `{base}` and `{counter}` tokens.',
 					},
 					{
-						displayName: 'Counter Start',
-						name: 'counterStart',
-						type: 'number',
-						typeOptions: {
-							minValue: 0,
-						},
-						default: 1,
-						description: 'The starting number for the counter.',
-					},
-					{
-						displayName: 'Counter Padding (Zeros)',
-						name: 'counterPadding',
-						type: 'number',
-						typeOptions: {
-							minValue: 0,
-						},
-						default: 3,
-						description:
-							'The number of zeros to pad the counter with. For example, a padding of 4 will turn `1` into `0001`.',
+						displayName: 'Overwrite Existing File',
+						name: 'overwrite',
+						type: 'boolean',
+						default: false,
+						description: 'Whether any existing file with the same name will be overwritten',
 					},
 				],
 			},
@@ -229,7 +230,7 @@ export class SaveFile implements INodeType {
 		}
 
 		if (counter >= startCounter + maxAttempts) {
-			throw new Error(
+			throw new ApplicationError(
 				`Could not find free counter after ${maxAttempts} attempts starting from ${startCounter}.`,
 			);
 		}
@@ -290,7 +291,7 @@ export class SaveFile implements INodeType {
 			}
 		}
 
-		throw new Error(
+		throw new ApplicationError(
 			`Could not find free filename for base "${base}" after scanning existing files and retrying ${maxRetries} times.`,
 		);
 	}
