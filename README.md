@@ -171,4 +171,4 @@ Output: backup_data_0100_final.json, backup_data_0101_final.json, ...
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
